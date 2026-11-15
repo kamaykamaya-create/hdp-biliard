@@ -11,12 +11,11 @@ jobs:
       - name: Ambil isi repository
         uses: actions/checkout@v4
 
-      - name: Ekstrak proyek dari file zip (jika diunggah sebagai zip)
+      - name: Ekstrak proyek dari file zip
         run: |
           if [ ! -f settings.gradle ]; then
             ZIP=$(ls *.zip 2>/dev/null | head -n 1 || true)
             if [ -z "$ZIP" ]; then echo "File zip proyek belum diunggah ke repository."; exit 1; fi
-            echo "Mengekstrak $ZIP"
             unzip -o -q "$ZIP" -d proyek_tmp
             SRC=$(dirname "$(find proyek_tmp -name settings.gradle | head -n 1)")
             cp -r "$SRC"/. .
@@ -28,13 +27,17 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Siapkan Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Siapkan Android SDK (bawaan server GitHub)
+        run: |
+          SDKM=$(ls -d $ANDROID_HOME/cmdline-tools/*/bin/sdkmanager | sort | tail -n 1)
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" "platforms;android-34" "build-tools;34.0.0" "platform-tools" > /dev/null
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
 
       - name: Build APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Unggah hasil APK
         uses: actions/upload-artifact@v4
